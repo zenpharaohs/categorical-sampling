@@ -16,11 +16,16 @@ path wired for binomial sampling.
   development.
 - `categorical_samplers.binomial` uses the native C backend when the extension
   has been built.
+- `categorical_samplers.multinomial` uses the native C pivot/cascade backend
+  when the extension has been built.
 - `categorical_samplers.validation` exposes first Hellinger/Bhattacharyya
   helpers for sampler qualification.
-- `native/core` contains the extracted C core starting point.
+- `native/core` contains the extracted C core starting point for binomial and
+  multinomial kernels.
 - `native/matlab_reference` contains the MATLAB MEX reference sources.
-- Native multinomial and categorical kernels are the next implementation step.
+- Native categorical kernels and broader multinomial triage are the next
+  implementation steps. The initial Python multinomial native path is correct
+  but still needs triage and performance work against NumPy.
 
 ## Quick Start
 
@@ -85,8 +90,17 @@ python -m categorical_samplers._wheel_smoke
 ```
 
 That smoke check confirms that the native extension imports, native binomial
-sampling works, and the NumPy-backed categorical and multinomial API still
-behaves as expected.
+and multinomial sampling work, and the categorical API still behaves as
+expected.
+
+## Benchmarks
+
+Manual benchmarks live in `benchmarks/`. They are not CI gates because speed is
+platform- and compiler-sensitive.
+
+```bash
+PYTHONPATH=src python benchmarks/bench_multinomial.py
+```
 
 ## API Sketch
 

@@ -13,6 +13,7 @@ extensions = [
         sources=[
             "native/python/categorical_samplers_native.c",
             "native/core/binom_core.c",
+            "native/core/multinom_core.c",
         ],
         include_dirs=[
             "native/core/include",

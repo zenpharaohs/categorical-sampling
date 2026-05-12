@@ -4,6 +4,7 @@
 #include <numpy/arrayobject.h>
 
 #include "binom_core.h"
+#include "multinom_core.h"
 
 #include <limits.h>
 #include <math.h>
@@ -137,9 +138,102 @@ static PyObject *native_binomial(PyObject *self, PyObject *args, PyObject *kwarg
     return array;
 }
 
+static PyObject *native_multinomial(PyObject *self, PyObject *args, PyObject *kwargs) {
+    (void)self;
+    static char *kwlist[] = {"K", "p", "size", "seed", "method", NULL};
+
+    unsigned long long K_raw = 0;
+    PyObject *p_obj = NULL;
+    Py_ssize_t size = 1;
+    PyObject *seed_obj = Py_None;
+    const char *method = "auto";
+
+    if (!PyArg_ParseTupleAndKeywords(
+            args,
+            kwargs,
+            "KO|nOs:multinomial",
+            kwlist,
+            &K_raw,
+            &p_obj,
+            &size,
+            &seed_obj,
+            &method)) {
+        return NULL;
+    }
+    if (size < 0) {
+        PyErr_SetString(PyExc_ValueError, "size must be nonnegative");
+        return NULL;
+    }
+    if (strcmp(method, "auto") != 0 && strcmp(method, "pivot") != 0 && strcmp(method, "cascade") != 0) {
+        PyErr_SetString(PyExc_ValueError, "method must be 'auto', 'pivot', or 'cascade'");
+        return NULL;
+    }
+    if (K_raw > (unsigned long long)LLONG_MAX) {
+        PyErr_SetString(PyExc_OverflowError, "K is too large for int64 output");
+        return NULL;
+    }
+
+    PyArrayObject *p_arr = (PyArrayObject *)PyArray_FROM_OTF(p_obj, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
+    if (p_arr == NULL) {
+        return NULL;
+    }
+    if (PyArray_NDIM(p_arr) != 1) {
+        Py_DECREF(p_arr);
+        PyErr_SetString(PyExc_ValueError, "p must be a one-dimensional probability vector");
+        return NULL;
+    }
+    npy_intp d_np = PyArray_DIM(p_arr, 0);
+    if (d_np <= 0 || d_np > PY_SSIZE_T_MAX) {
+        Py_DECREF(p_arr);
+        PyErr_SetString(PyExc_ValueError, "p must contain at least one category");
+        return NULL;
+    }
+
+    uint64_t seed = 0;
+    if (!read_seed(seed_obj, &seed)) {
+        Py_DECREF(p_arr);
+        return NULL;
+    }
+
+    cs_multinom_pivot_state state;
+    int rc = cs_multinom_pivot_build((const double *)PyArray_DATA(p_arr), (size_t)d_np, &state);
+    Py_DECREF(p_arr);
+    if (rc == CS_MULTINOM_BAD_PROB) {
+        PyErr_SetString(PyExc_ValueError, "p must contain finite nonnegative values with positive total mass");
+        return NULL;
+    }
+    if (rc == CS_MULTINOM_ALLOC_FAILED) {
+        return PyErr_NoMemory();
+    }
+    if (rc != CS_MULTINOM_OK) {
+        PyErr_SetString(PyExc_RuntimeError, "failed to build multinomial pivot state");
+        return NULL;
+    }
+
+    npy_intp dims[2] = {(npy_intp)size, d_np};
+    PyObject *array = PyArray_SimpleNew(2, dims, NPY_INT64);
+    if (array == NULL) {
+        cs_multinom_pivot_free(&state);
+        return NULL;
+    }
+
+    Py_BEGIN_ALLOW_THREADS
+    cs_multinom_pivot_draw_batch(
+        &state,
+        (uint64_t)K_raw,
+        (size_t)size,
+        seed,
+        (int64_t *)PyArray_DATA((PyArrayObject *)array));
+    Py_END_ALLOW_THREADS
+
+    cs_multinom_pivot_free(&state);
+    return array;
+}
+
 static PyMethodDef methods[] = {
     {"native_available", native_available, METH_NOARGS, "Return True when the native extension is loaded."},
     {"binomial", (PyCFunction)native_binomial, METH_VARARGS | METH_KEYWORDS, "Draw native binomial variates."},
+    {"multinomial", (PyCFunction)native_multinomial, METH_VARARGS | METH_KEYWORDS, "Draw native multinomial count vectors."},
     {NULL, NULL, 0, NULL}
 };
 

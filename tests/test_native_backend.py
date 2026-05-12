@@ -28,6 +28,23 @@ class NativeBackendTests(unittest.TestCase):
         wait2 = cs.binomial(5000, 0.002, size=256, seed=101, method="wait2")
         self.assertTrue(np.array_equal(auto, wait2))
 
+    def test_native_multinomial_is_reproducible(self):
+        p = np.array([0.05, 0.15, 0.30, 0.50])
+        a = cs.multinomial(25, p, size=128, seed=123, method="pivot")
+        b = cs.multinomial(25, p, size=128, seed=123, method="pivot")
+        self.assertTrue(np.array_equal(a, b))
+        self.assertEqual(a.dtype, np.int64)
+        self.assertTrue(np.all(a.sum(axis=1) == 25))
+
+    def test_native_multinomial_mean_smoke(self):
+        p = np.array([0.05, 0.15, 0.30, 0.50])
+        K = 40
+        draws = cs.multinomial(K, p, size=200000, seed=321, method="pivot")
+        means = draws.mean(axis=0)
+        se = np.sqrt(K * p * (1.0 - p) / draws.shape[0])
+        z = np.abs(means - K * p) / se
+        self.assertTrue(np.all(z < 4.0), f"multinomial means too far: z={z}")
+
 
 if __name__ == "__main__":
     unittest.main()

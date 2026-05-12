@@ -22,3 +22,10 @@ def binomial(n: int, p: float, size: int, seed: Optional[int], method: str) -> n
     if _native is None:
         raise RuntimeError("native backend is not available")
     return _native.binomial(int(n), float(p), int(size), seed, str(method))
+
+
+def multinomial(K: int, p: np.ndarray, size: int, seed: Optional[int], method: str) -> np.ndarray:
+    """Draw multinomial count vectors using the native backend."""
+    if _native is None:
+        raise RuntimeError("native backend is not available")
+    return _native.multinomial(int(K), np.asarray(p, dtype=np.float64), int(size), seed, str(method))

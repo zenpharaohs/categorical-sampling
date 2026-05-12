@@ -86,10 +86,13 @@ def multinomial(
     method: str = "auto",
 ) -> np.ndarray:
     """Draw multinomial count vectors."""
-    del method
     trials = _nonnegative_int("K", K)
     count = _nonnegative_int("size", size)
     probs = _probability_vector(p)
+    if _backend.native_available() and method in {"auto", "pivot", "cascade"}:
+        return _backend.multinomial(trials, probs, count, seed, method)
+    if method not in {"auto", "numpy"}:
+        raise ValueError("method must be 'auto', 'pivot', 'cascade', or 'numpy'")
     return _rng(seed).multinomial(trials, probs, size=count).astype(np.int64, copy=False)
 
 
