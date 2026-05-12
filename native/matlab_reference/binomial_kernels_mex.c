@@ -54,49 +54,55 @@
   * Reference: Marsaglia & Tsang (2000), J. Stat. Soft. 5(8).
   */
  #define ZEXP_N 256
- static uint32_t zexp_ke[ZEXP_N];
- static double   zexp_we[ZEXP_N];
- static double   zexp_fe[ZEXP_N+1];
  static double   zexp_x [ZEXP_N+1];
+ static double   zexp_w [ZEXP_N];
+ static double   zexp_f [ZEXP_N+1];
+ static double   zexp_r [ZEXP_N];
+ static double   zexp_tail = 0.0;
  static int      zexp_inited = 0;
 
  static void zexp_init_(void){
      if (zexp_inited) return;
      const double R   = 7.69711747013104972;
-     const double eR  = exp(-R);
-     const double Ain = (1.0 - eR) / (double)ZEXP_N;
-     zexp_x[0]  = R;
-     zexp_fe[0] = eR;
-     for (int i = 1; i <= ZEXP_N; ++i){
-         double ei = eR + (double)i * Ain;
-         if (ei > 1.0) ei = 1.0;
-         zexp_x[i]  = -log(ei);
-         zexp_fe[i] = ei;
+     double lo = 0.0, hi = 0.01;
+     for (;;) {
+         double x = 0.0;
+         for (int i = 0; i < ZEXP_N; ++i) x += hi * exp(x);
+         if (x >= R) break;
+         hi *= 2.0;
      }
+     for (int it = 0; it < 80; ++it) {
+         double a = 0.5 * (lo + hi);
+         double x = 0.0;
+         for (int i = 0; i < ZEXP_N; ++i) x += a * exp(x);
+         if (x < R) lo = a; else hi = a;
+     }
+     const double A = 0.5 * (lo + hi);
+     zexp_x[0] = 0.0;
+     zexp_f[0] = 1.0;
      for (int i = 0; i < ZEXP_N; ++i){
-         double w = zexp_x[i] - zexp_x[i+1];
-         zexp_we[i] = w * (1.0/4294967296.0);
-         double r = zexp_fe[i+1] / zexp_fe[i];
-         double t = r * 4294967296.0;
-         zexp_ke[i] = (t >= 4294967295.0) ? 0xFFFFFFFFu : (uint32_t)t;
+         zexp_x[i+1] = zexp_x[i] + A * exp(zexp_x[i]);
+         zexp_w[i] = zexp_x[i+1] - zexp_x[i];
+         zexp_f[i+1] = exp(-zexp_x[i+1]);
+         zexp_r[i] = zexp_f[i+1] / zexp_f[i];
      }
+     zexp_tail = exp(-R);
      zexp_inited = 1;
  }
 
  /* Returns one Exp(1) deviate.  Fast path: no transcendentals. */
  static inline double expdev_zig_(uint64_t *s){
      zexp_init_();
+     if (u01(s) < zexp_tail)
+         return zexp_x[ZEXP_N] - log(u01(s));
      for (;;){
          uint64_t r = u64(s);
-         uint32_t j = (uint32_t)(r & 0xFFFFFFFFu);
-         int      i = (int)((r >> 32) & 0xFFu);
-         if (j < zexp_ke[i])
-             return zexp_x[i+1] + (double)j * zexp_we[i];   /* fast (~99%) */
-         if (i == 0)
-             return zexp_x[0] - log(u01(s));                 /* tail: rare  */
-         double x = zexp_x[i+1] + (double)j * zexp_we[i];
-         double y = zexp_fe[i+1] + (zexp_fe[i] - zexp_fe[i+1]) * u01(s);
-         if (y <= exp(-x)) return x;                         /* exact test  */
+         int i = (int)(r & 0xFFu);
+         double ux = (double)(r >> 11) * (1.0/9007199254740992.0);
+         double x = zexp_x[i] + ux * zexp_w[i];
+         double uy = u01(s);
+         if (uy <= zexp_r[i] || uy <= exp(-x) / zexp_f[i])
+             return x;
      }
  }
 
@@ -529,4 +535,3 @@
 
      mexErrMsgIdAndTxt("binokernels:cmd","Unknown cmd '%s'", cmd);
  }
-

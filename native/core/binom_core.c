@@ -65,76 +65,56 @@ size_t binom_centerout_core(size_t n, double p,
  * ============================================================ */
 #define ZEXP_N 256
 
-static uint32_t zexp_ke[ZEXP_N];   /* accept thresholds */
-static double   zexp_we[ZEXP_N];   /* widths scaled by 2^-32 */
-static double   zexp_fe[ZEXP_N+1]; /* e^{-x[i]} at breakpoints */
-static double   zexp_x [ZEXP_N+1]; /* breakpoints x[0]=R > ... > x[N]=0 */
+static double   zexp_x [ZEXP_N+1]; /* breakpoints x[0]=0 < ... < x[N]=R */
+static double   zexp_w [ZEXP_N];   /* interval widths */
+static double   zexp_f [ZEXP_N+1]; /* e^{-x[i]} */
+static double   zexp_r [ZEXP_N];   /* fast accept ratios f[i+1]/f[i] */
+static double   zexp_tail = 0.0;   /* P(Exp(1) >= R) */
 static int      zexp_inited = 0;
 
 static void zexp_init_(void){
     if (zexp_inited) return;
 
-    /* Choose R so tail work is well balanced (canonical value). */
     const double R = 7.69711747013104972;
-
-    /* Build x so that each layer i has equal area between x[i]..x[i-1].
-       For Exp(1): area(x[i], x[i-1]) = e^{-x[i]} - e^{-x[i-1]}.
-       Set e^{-x[i]} linearly spaced from e^{-R} to 1. */
-    const double eR  = exp(-R);
-    const double Ain = (1.0 - eR) / (double)ZEXP_N;
-
-    zexp_x[0] = R;
-    zexp_fe[0] = eR;
-    for (int i=1; i<=ZEXP_N; ++i){
-        double ei = eR + (double)i * Ain;           /* e^{-x[i]} */
-        if (ei > 1.0) ei = 1.0;
-        zexp_x[i]  = -log(ei);
-        zexp_fe[i] = ei;
+    double lo = 0.0, hi = 0.01;
+    for (;;) {
+        double x = 0.0;
+        for (int i=0; i<ZEXP_N; ++i) x += hi * exp(x);
+        if (x >= R) break;
+        hi *= 2.0;
     }
-    /* Now x[0]=R > x[1] > ... > x[N]=0 and fe[i]=exp(-x[i]) increasing */
-
-    for (int i=0; i<ZEXP_N; ++i){
-        /* width of layer i is w = x[i] - x[i+1] (>0) */
-        const double w = zexp_x[i] - zexp_x[i+1];
-        zexp_we[i] = w * (1.0/4294967296.0);  /* scale by 2^-32 */
-
-        /* Accept-threshold: fraction of the base rectangle under the curve.
-           Height ratio fe[i+1]/fe[i] works for Exp(1). */
-        double r = zexp_fe[i+1] / zexp_fe[i];
-        if (r <= 0.0) zexp_ke[i] = 0;
-        else {
-            double t = r * 4294967296.0;     /* 2^32 */
-            if (t >= 4294967295.0) zexp_ke[i] = 0xFFFFFFFFu;
-            else                   zexp_ke[i] = (uint32_t)t;
-        }
+    for (int it=0; it<80; ++it) {
+        double a = 0.5 * (lo + hi);
+        double x = 0.0;
+        for (int i=0; i<ZEXP_N; ++i) x += a * exp(x);
+        if (x < R) lo = a; else hi = a;
     }
+    const double A = 0.5 * (lo + hi);
+
+    zexp_x[0] = 0.0;
+    zexp_f[0] = 1.0;
+    for (int i=0; i<ZEXP_N; ++i) {
+        zexp_x[i+1] = zexp_x[i] + A * exp(zexp_x[i]);
+        zexp_w[i] = zexp_x[i+1] - zexp_x[i];
+        zexp_f[i+1] = exp(-zexp_x[i+1]);
+        zexp_r[i] = zexp_f[i+1] / zexp_f[i];
+    }
+    zexp_tail = exp(-R);
     zexp_inited = 1;
 }
 
 static inline double expdev_ziggurat(binom_U01_f U01, binom_U64_f U64, void* ctx){
     zexp_init_();
+    if (clamp01_open(U01(ctx)) < zexp_tail) {
+        return zexp_x[ZEXP_N] - log(clamp01_open(U01(ctx)));
+    }
     for (;;){
         uint64_t r = U64(ctx);
-        uint32_t j = (uint32_t)(r & 0xFFFFFFFFu);
-        int      i = (int)((r >> 32) & 0xFFu);   /* 0..255 */
-
-        /* Fast accept region under the left rectangle slab. */
-        if (j < zexp_ke[i]){
-            /* Return a point uniformly over the base of the slab. */
-            return zexp_x[i+1] + (double)j * zexp_we[i];
-        }
-
-        /* Slow branch: sample inside wedge beneath e^{-x} over [x[i+1], x[i]]. */
-        double x  = zexp_x[i+1] + (double)j * zexp_we[i];
-        if (i == 0){
-            /* Top layer: memoryless tail */
-            return zexp_x[0] - log( clamp01_open(U01(ctx)) );
-        } else {
-            /* Draw y uniformly in [fe[i+1], fe[i]] and accept if y <= e^{-x}. */
-            double y = zexp_fe[i+1] + (zexp_fe[i] - zexp_fe[i+1]) * clamp01_open(U01(ctx));
-            if (y <= exp(-x)) return x;
-            /* else retry */
-        }
+        int i = (int)(r & 0xFFu);
+        double u = (double)(r >> 11) * (1.0/9007199254740992.0);
+        double x = zexp_x[i] + u * zexp_w[i];
+        double y = clamp01_open(U01(ctx));
+        if (y <= zexp_r[i] || y <= exp(-x) / zexp_f[i]) return x;
     }
 }
 
