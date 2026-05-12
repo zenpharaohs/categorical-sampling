@@ -20,8 +20,8 @@ class NativeBackendTests(unittest.TestCase):
         self.assertLess(abs(float(draws.mean()) - 74.0), 0.5)
 
     def test_native_wait2_mean_smoke(self):
-        draws = cs.binomial(5000, 0.002, size=20000, seed=101, method="wait2")
-        self.assertLess(abs(float(draws.mean()) - 10.0), 0.15)
+        draws = cs.binomial(5000, 0.002, size=1000000, seed=123, method="wait2")
+        self.assertLess(abs(float(draws.mean()) - 10.0), 0.015)
 
     def test_native_auto_matches_wait2_for_sparse_case(self):
         auto = cs.binomial(5000, 0.002, size=256, seed=101, method="auto")

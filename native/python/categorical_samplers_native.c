@@ -6,6 +6,7 @@
 #include "binom_core.h"
 
 #include <limits.h>
+#include <math.h>
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
@@ -26,11 +27,6 @@ static double cb_u01(void *ctx) {
     const uint64_t r = splitmix64_next(&rng->state);
     const uint64_t m = (r >> 11) | 1ULL;
     return (double)m * (1.0 / 9007199254740992.0);
-}
-
-static uint64_t cb_u64(void *ctx) {
-    rng_ctx_t *rng = (rng_ctx_t *)ctx;
-    return splitmix64_next(&rng->state);
 }
 
 static uint64_t seed_from_none(void) {
@@ -57,6 +53,35 @@ static PyObject *native_available(PyObject *self, PyObject *args) {
     (void)self;
     (void)args;
     Py_RETURN_TRUE;
+}
+
+static size_t binom_wait_log_core(size_t n, double p, void *ctx) {
+    if (p <= 0.0) {
+        return 0;
+    }
+    if (p >= 1.0) {
+        return n;
+    }
+
+    int flip = 0;
+    if (p > 0.5) {
+        p = 1.0 - p;
+        flip = 1;
+    }
+
+    const double lam = -log1p(-p);
+    const double invlam = 1.0 / lam;
+    size_t t = 0;
+    size_t k = 0;
+    while (t < n) {
+        double e = -log(cb_u01(ctx));
+        size_t g = (size_t)(e * invlam);
+        t += g + 1;
+        if (t <= n) {
+            ++k;
+        }
+    }
+    return flip ? (n - k) : k;
 }
 
 static PyObject *native_binomial(PyObject *self, PyObject *args, PyObject *kwargs) {
@@ -127,7 +152,7 @@ static PyObject *native_binomial(PyObject *self, PyObject *args, PyObject *kwarg
         rng_ctx_t ctx;
         ctx.state = seed ^ (0xC6A4A7935BD1E995ULL * ((uint64_t)i + 1ULL));
         size_t value = use_wait2
-            ? binom_wait2_core(n, p, cb_u01, cb_u64, &ctx)
+            ? binom_wait_log_core(n, p, &ctx)
             : binom_centerout_core(n, p, cb_u01, &ctx);
         out[i] = (int64_t)value;
     }
