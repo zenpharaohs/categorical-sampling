@@ -9,23 +9,22 @@ reinventing the sampler design.
 
 ## Current Status
 
-This is the initial Python repository scaffold with the first native backend
-path wired for binomial sampling.
+This is the initial Python repository scaffold with native backend paths wired
+for binomial and multinomial sampling.
 
 - `categorical_samplers` exposes a NumPy-backed API for smoke tests and contract
   development.
 - `categorical_samplers.binomial` uses the native C backend when the extension
   has been built.
-- `categorical_samplers.multinomial` uses the native C pivot/cascade backend
-  when the extension has been built.
+- `categorical_samplers.multinomial` uses native C multinomial kernels when the
+  extension has been built: `pivot`, `smallk-cdf`, and `rep`.
 - `categorical_samplers.validation` exposes first Hellinger/Bhattacharyya
   helpers for sampler qualification.
 - `native/core` contains the extracted C core starting point for binomial and
   multinomial kernels.
 - `native/matlab_reference` contains the MATLAB MEX reference sources.
-- Native categorical kernels and broader multinomial triage are the next
-  implementation steps. The initial Python multinomial native path is correct
-  but still needs triage and performance work against NumPy.
+- Native categorical kernels, prebuilt multinomial state, OpenMP row-parallel
+  batches, and broader multinomial triage are the next implementation steps.
 
 ## Quick Start
 
@@ -122,6 +121,17 @@ import categorical_samplers as cs
 assert cs.native_available()
 x = cs.binomial(100_000, 0.01, size=1_000_000, seed=123, method="wait2")
 ```
+
+Multinomial methods currently include:
+
+```python
+H1 = cs.multinomial(10, p, size=1000, method="smallk-cdf")
+H2 = cs.multinomial(10, p, size=1000, method="rep")
+H3 = cs.multinomial(1000, p, size=1000, method="pivot")
+```
+
+`method="auto"` is still a simple native dispatch placeholder. Learned or
+calibrated triage is planned.
 
 ## Validation
 

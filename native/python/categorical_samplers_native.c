@@ -164,8 +164,16 @@ static PyObject *native_multinomial(PyObject *self, PyObject *args, PyObject *kw
         PyErr_SetString(PyExc_ValueError, "size must be nonnegative");
         return NULL;
     }
-    if (strcmp(method, "auto") != 0 && strcmp(method, "pivot") != 0 && strcmp(method, "cascade") != 0) {
-        PyErr_SetString(PyExc_ValueError, "method must be 'auto', 'pivot', or 'cascade'");
+    if (strcmp(method, "auto") != 0 &&
+        strcmp(method, "pivot") != 0 &&
+        strcmp(method, "cascade") != 0 &&
+        strcmp(method, "smallk-cdf") != 0 &&
+        strcmp(method, "smallK-cdf") != 0 &&
+        strcmp(method, "cdf") != 0 &&
+        strcmp(method, "rep") != 0 &&
+        strcmp(method, "thin") != 0 &&
+        strcmp(method, "alias") != 0) {
+        PyErr_SetString(PyExc_ValueError, "method must be 'auto', 'pivot', 'cascade', 'smallk-cdf', 'rep', 'thin', or 'alias'");
         return NULL;
     }
     if (K_raw > (unsigned long long)LLONG_MAX) {
@@ -195,38 +203,59 @@ static PyObject *native_multinomial(PyObject *self, PyObject *args, PyObject *kw
         return NULL;
     }
 
-    cs_multinom_pivot_state state;
-    int rc = cs_multinom_pivot_build((const double *)PyArray_DATA(p_arr), (size_t)d_np, &state);
+    npy_intp dims[2] = {(npy_intp)size, d_np};
+    PyObject *array = PyArray_SimpleNew(2, dims, NPY_INT64);
+    if (array == NULL) {
+        Py_DECREF(p_arr);
+        return NULL;
+    }
+
+    const double *p_data = (const double *)PyArray_DATA(p_arr);
+    int64_t *out = (int64_t *)PyArray_DATA((PyArrayObject *)array);
+    int rc = CS_MULTINOM_OK;
+    if (strcmp(method, "smallk-cdf") == 0 || strcmp(method, "smallK-cdf") == 0 || strcmp(method, "cdf") == 0) {
+        cs_multinom_cdf_state state;
+        rc = cs_multinom_cdf_build(p_data, (size_t)d_np, &state);
+        if (rc == CS_MULTINOM_OK) {
+            Py_BEGIN_ALLOW_THREADS
+            cs_multinom_cdf_draw_batch(&state, (uint64_t)K_raw, (size_t)size, seed, out);
+            Py_END_ALLOW_THREADS
+            cs_multinom_cdf_free(&state);
+        }
+    } else if (strcmp(method, "rep") == 0 || strcmp(method, "thin") == 0 || strcmp(method, "alias") == 0) {
+        cs_multinom_alias_state state;
+        rc = cs_multinom_alias_build(p_data, (size_t)d_np, &state);
+        if (rc == CS_MULTINOM_OK) {
+            Py_BEGIN_ALLOW_THREADS
+            cs_multinom_alias_draw_batch(&state, (uint64_t)K_raw, (size_t)size, seed, out);
+            Py_END_ALLOW_THREADS
+            cs_multinom_alias_free(&state);
+        }
+    } else {
+        cs_multinom_pivot_state state;
+        rc = cs_multinom_pivot_build(p_data, (size_t)d_np, &state);
+        if (rc == CS_MULTINOM_OK) {
+            Py_BEGIN_ALLOW_THREADS
+            cs_multinom_pivot_draw_batch(&state, (uint64_t)K_raw, (size_t)size, seed, out);
+            Py_END_ALLOW_THREADS
+            cs_multinom_pivot_free(&state);
+        }
+    }
     Py_DECREF(p_arr);
     if (rc == CS_MULTINOM_BAD_PROB) {
+        Py_DECREF(array);
         PyErr_SetString(PyExc_ValueError, "p must contain finite nonnegative values with positive total mass");
         return NULL;
     }
     if (rc == CS_MULTINOM_ALLOC_FAILED) {
+        Py_DECREF(array);
         return PyErr_NoMemory();
     }
     if (rc != CS_MULTINOM_OK) {
-        PyErr_SetString(PyExc_RuntimeError, "failed to build multinomial pivot state");
+        Py_DECREF(array);
+        PyErr_SetString(PyExc_RuntimeError, "failed to build multinomial state");
         return NULL;
     }
-
-    npy_intp dims[2] = {(npy_intp)size, d_np};
-    PyObject *array = PyArray_SimpleNew(2, dims, NPY_INT64);
-    if (array == NULL) {
-        cs_multinom_pivot_free(&state);
-        return NULL;
-    }
-
-    Py_BEGIN_ALLOW_THREADS
-    cs_multinom_pivot_draw_batch(
-        &state,
-        (uint64_t)K_raw,
-        (size_t)size,
-        seed,
-        (int64_t *)PyArray_DATA((PyArrayObject *)array));
-    Py_END_ALLOW_THREADS
-
-    cs_multinom_pivot_free(&state);
     return array;
 }
 

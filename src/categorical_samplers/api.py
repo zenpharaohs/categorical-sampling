@@ -89,10 +89,11 @@ def multinomial(
     trials = _nonnegative_int("K", K)
     count = _nonnegative_int("size", size)
     probs = _probability_vector(p)
-    if _backend.native_available() and method in {"auto", "pivot", "cascade"}:
+    native_methods = {"auto", "pivot", "cascade", "smallk-cdf", "smallK-cdf", "cdf", "rep", "thin", "alias"}
+    if _backend.native_available() and method in native_methods:
         return _backend.multinomial(trials, probs, count, seed, method)
     if method not in {"auto", "numpy"}:
-        raise ValueError("method must be 'auto', 'pivot', 'cascade', or 'numpy'")
+        raise ValueError("method must be 'auto', 'pivot', 'cascade', 'smallk-cdf', 'rep', 'thin', 'alias', or 'numpy'")
     return _rng(seed).multinomial(trials, probs, size=count).astype(np.int64, copy=False)
 
 
