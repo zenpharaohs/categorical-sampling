@@ -7,6 +7,9 @@ port contracts written from the MATLAB implementation, and `native/` carries
 the C and MEX reference sources so the Python backend work can proceed without
 reinventing the sampler design.
 
+See [Architecture Notes](docs/architecture.md) for the shared-backend,
+frontend-shim, RNG/threading, and triage rationale.
+
 ## Current Status
 
 This is the initial Python repository scaffold with native backend paths wired
