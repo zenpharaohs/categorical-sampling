@@ -47,6 +47,35 @@ python setup.py build_ext --inplace
 PYTHONPATH=src python -m unittest discover -s tests
 ```
 
+## Build Wheels
+
+Wheel builds are configured with `cibuildwheel` in `pyproject.toml`.
+
+Local platform wheel:
+
+```bash
+python -m pip install build cibuildwheel
+python -m cibuildwheel --platform auto
+```
+
+Linux builders can run:
+
+```bash
+python -m pip install build cibuildwheel
+python -m cibuildwheel --platform linux
+```
+
+macOS and Windows builders use the same command with `--platform macos` or
+`--platform windows`. Each wheel is tested after installation with:
+
+```bash
+python -m categorical_samplers._wheel_smoke
+```
+
+That smoke check confirms that the native extension imports, native binomial
+sampling works, and the NumPy-backed categorical and multinomial API still
+behaves as expected.
+
 ## API Sketch
 
 ```python
