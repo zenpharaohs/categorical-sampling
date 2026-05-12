@@ -9,15 +9,18 @@ reinventing the sampler design.
 
 ## Current Status
 
-This is the initial Python repository scaffold.
+This is the initial Python repository scaffold with the first native backend
+path wired for binomial sampling.
 
 - `categorical_samplers` exposes a NumPy-backed API for smoke tests and contract
   development.
+- `categorical_samplers.binomial` uses the native C backend when the extension
+  has been built.
 - `categorical_samplers.validation` exposes first Hellinger/Bhattacharyya
   helpers for sampler qualification.
 - `native/core` contains the extracted C core starting point.
 - `native/matlab_reference` contains the MATLAB MEX reference sources.
-- The optimized native Python extension is the next implementation step.
+- Native multinomial and categorical kernels are the next implementation step.
 
 ## Quick Start
 
@@ -36,6 +39,14 @@ Without installing, the smoke tests can also be run from the repo root:
 PYTHONPATH=src python -m unittest discover -s tests
 ```
 
+In that mode, native backend tests are skipped unless the extension has already
+been built in place:
+
+```bash
+python setup.py build_ext --inplace
+PYTHONPATH=src python -m unittest discover -s tests
+```
+
 ## API Sketch
 
 ```python
@@ -47,7 +58,15 @@ z = cs.multinomial(25, [0.2, 0.3, 0.5], size=1000, seed=123)
 ```
 
 The initial implementation delegates to NumPy. That keeps the public contract
-testable while the native backend is built.
+testable while the native backend is completed. Binomial sampling already uses
+the native extension when it is available:
+
+```python
+import categorical_samplers as cs
+
+assert cs.native_available()
+x = cs.binomial(100_000, 0.01, size=1_000_000, seed=123, method="wait2")
+```
 
 ## Validation
 

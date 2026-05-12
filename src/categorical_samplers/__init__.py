@@ -9,6 +9,7 @@ from .api import (
     multinomial,
 )
 from .validation import bhattacharyya_iid_bounds, empirical_affinity
+from ._backend import native_available
 
 __all__ = [
     "BinomialStream",
@@ -19,4 +20,5 @@ __all__ = [
     "categorical",
     "empirical_affinity",
     "multinomial",
+    "native_available",
 ]

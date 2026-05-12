@@ -11,6 +11,8 @@ from typing import Iterable, Optional
 
 import numpy as np
 
+from . import _backend
+
 
 Seed = Optional[int]
 
@@ -48,12 +50,13 @@ def binomial(n: int, p: float, size: int = 1, *, seed: Seed = None, method: str 
     Parameters are intentionally conservative while the native backend is in
     progress. ``method`` is accepted for contract compatibility.
     """
-    del method
     trials = _nonnegative_int("n", n)
     count = _nonnegative_int("size", size)
     prob = float(p)
     if not np.isfinite(prob) or prob < 0.0 or prob > 1.0:
         raise ValueError("p must be in [0, 1]")
+    if _backend.native_available() and method in {"auto", "centerout", "wait2", "btrd"}:
+        return _backend.binomial(trials, prob, count, seed, method)
     return _rng(seed).binomial(trials, prob, size=count).astype(np.int64, copy=False)
 
 
