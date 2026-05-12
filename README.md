@@ -24,7 +24,7 @@ path wired for binomial sampling.
 
 ## Quick Start
 
-From a fresh clone:
+From a fresh clone on macOS or Linux:
 
 ```bash
 python -m venv .venv
@@ -32,6 +32,18 @@ python -m venv .venv
 python -m pip install -e .
 python -m unittest discover -s tests
 ```
+
+From a fresh clone in Windows `cmd`:
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate.bat
+python -m pip install -e .
+python -m unittest discover -s tests
+```
+
+The final `.` in `python -m pip install -e .` means "install this repository
+from the current folder"; it is required.
 
 Without installing, the smoke tests can also be run from the repo root:
 
