@@ -6,6 +6,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _OPENMP
+  #include <omp.h>
+  #define CS_OMP_PRAGMA(x) _Pragma(#x)
+#else
+  #define CS_OMP_PRAGMA(x)
+#endif
+
 typedef struct {
     double value;
     size_t index;
@@ -155,7 +162,9 @@ void cs_multinom_pivot_draw_batch(const cs_multinom_pivot_state *state,
                                   uint64_t seed,
                                   int64_t *out_row_major) {
     const size_t d = state->d;
-    for (size_t row = 0; row < m; ++row) {
+    CS_OMP_PRAGMA(omp parallel for schedule(static) if(m > 1))
+    for (ptrdiff_t row_i = 0; row_i < (ptrdiff_t)m; ++row_i) {
+        size_t row = (size_t)row_i;
         uint64_t row_seed = seed ^ (UINT64_C(0x60642E2A34326F15) * (uint64_t)(row + 1));
         cs_multinom_pivot_draw_one(state, K, row_seed, out_row_major + row * d);
     }
@@ -212,7 +221,9 @@ void cs_multinom_cdf_draw_batch(const cs_multinom_cdf_state *state,
                                 uint64_t seed,
                                 int64_t *out_row_major) {
     const size_t d = state->d;
-    for (size_t row = 0; row < m; ++row) {
+    CS_OMP_PRAGMA(omp parallel for schedule(static) if(m > 1))
+    for (ptrdiff_t row_i = 0; row_i < (ptrdiff_t)m; ++row_i) {
+        size_t row = (size_t)row_i;
         int64_t *out = out_row_major + row * d;
         memset(out, 0, d * sizeof(int64_t));
         uint64_t row_seed = seed ^ (UINT64_C(0xD1B54A32D192ED03) * (uint64_t)(row + 1));
@@ -317,7 +328,9 @@ void cs_multinom_alias_draw_batch(const cs_multinom_alias_state *state,
                                   uint64_t seed,
                                   int64_t *out_row_major) {
     const size_t d = state->d;
-    for (size_t row = 0; row < m; ++row) {
+    CS_OMP_PRAGMA(omp parallel for schedule(static) if(m > 1))
+    for (ptrdiff_t row_i = 0; row_i < (ptrdiff_t)m; ++row_i) {
+        size_t row = (size_t)row_i;
         int64_t *out = out_row_major + row * d;
         memset(out, 0, d * sizeof(int64_t));
         uint64_t row_seed = seed ^ (UINT64_C(0xD1B54A32D192ED03) * (uint64_t)(row + 1));

@@ -23,8 +23,9 @@ for binomial and multinomial sampling.
 - `native/core` contains the extracted C core starting point for binomial and
   multinomial kernels.
 - `native/matlab_reference` contains the MATLAB MEX reference sources.
-- Native categorical kernels, prebuilt multinomial state, OpenMP row-parallel
-  batches, and broader multinomial triage are the next implementation steps.
+- Native multinomial batch kernels use OpenMP when available. Native
+  categorical kernels, prebuilt multinomial state, and broader multinomial
+  triage are the next implementation steps.
 
 ## Quick Start
 
@@ -100,6 +101,9 @@ platform- and compiler-sensitive.
 ```bash
 PYTHONPATH=src python benchmarks/bench_multinomial.py
 ```
+
+On macOS, OpenMP builds require `libomp` (for example from Homebrew). Set
+`CATEGORICAL_SAMPLERS_NO_OPENMP=1` to force a serial native build.
 
 ## API Sketch
 
