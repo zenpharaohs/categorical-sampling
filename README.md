@@ -29,8 +29,8 @@ From a fresh clone:
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-python -m pip install -e .[test]
-python -m pytest
+python -m pip install -e .
+python -m unittest discover -s tests
 ```
 
 Without installing, the smoke tests can also be run from the repo root:

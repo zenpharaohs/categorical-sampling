@@ -17,9 +17,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = [
-  "pytest>=7"
-]
 validation = [
   "scipy>=1.10"
 ]
