@@ -3,14 +3,14 @@ requires = ["setuptools>=68", "wheel", "numpy>=1.24"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "categorical-samplers"
+name = "categorical-sampling"
 version = "0.0.1"
 description = "Fast categorical-family random samplers and validation utilities."
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [
-  {name = "categorical-samplers contributors"}
+  {name = "categorical-sampling contributors"}
 ]
 dependencies = [
   "numpy>=1.24"

@@ -1,6 +1,6 @@
-# categorical-samplers
+# categorical-sampling
 
-Python port of the MATLAB/MEX categorical sampler package.
+Categorical-family random samplers and validation utilities.
 
 This repo is intentionally contract-first. The `mcm/` directory carries the
 port contracts written from the MATLAB implementation, and `native/` carries
