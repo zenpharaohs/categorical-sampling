@@ -21,8 +21,9 @@ for binomial and multinomial sampling.
   has been built.
 - `categorical_samplers.multinomial` uses native C multinomial kernels when the
   extension has been built: `pivot`, `smallk-cdf`, and `rep`.
-- `categorical_samplers.validation` exposes first Hellinger/Bhattacharyya
-  helpers for sampler qualification.
+- `categorical_samplers.validation` exposes direct discrete
+  Hellinger/Bhattacharyya helpers plus randomized-PIT hooks for the shared
+  `hellinger-qualify` and `streaming-pit-validate` packages.
 - `native/core` contains the extracted C core starting point for binomial and
   multinomial kernels.
 - `native/matlab_reference` contains the MATLAB MEX reference sources.
@@ -142,8 +143,8 @@ calibrated triage is planned.
 
 ## Validation
 
-Sampler qualification is based on Hellinger affinity. For iid samples, the
-affinity compounds as:
+Sampler qualification is based on Hellinger affinity and randomized PIT
+diagnostics. For iid samples, the affinity compounds as:
 
 ```text
 A(P^N, Q^N) = A(P, Q)^N
@@ -151,3 +152,15 @@ A(P^N, Q^N) = A(P, Q)^N
 
 The validation helpers translate one-sample affinity bounds into sample-size
 qualification ranges for indistinguishability or detectability claims.
+
+For categorical draws, the repo also computes randomized PIT samples
+`u = F(j - 1) + V p_j`. Under the exact sampler these are uniform, so the same
+PIT validators used by `continuous-bernoulli` can be reused here:
+
+```bash
+PYTHONPATH=src:../hellinger-qualify/src:../streaming-pit-validate/src \
+  python benchmarks/validate_install.py --n 1000000
+```
+
+See [Validation](docs/validation.md) for the direct discrete and PIT-based
+validation paths.

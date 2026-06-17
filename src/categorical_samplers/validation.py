@@ -1,10 +1,10 @@
-"""Validation helpers based on Hellinger affinity."""
+"""Validation helpers based on Hellinger affinity and randomized PIT samples."""
 
 from __future__ import annotations
 
 from collections import Counter
 from math import exp, isfinite, lgamma, log, sqrt
-from typing import Iterable, Mapping, Sequence, Tuple
+from typing import Iterable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -77,6 +77,102 @@ def categorical_counts(draws: Sequence[int], index_base: int = 0) -> Counter:
     """Convert categorical draws to zero-based count keys."""
     base = int(index_base)
     return Counter(int(x) - base for x in draws)
+
+
+RandomSource = Union[np.random.Generator, int, None]
+
+
+def _rng_from_seed(rng: RandomSource) -> np.random.Generator:
+    if isinstance(rng, np.random.Generator):
+        return rng
+    return np.random.default_rng(rng)
+
+
+def randomized_categorical_pit(
+    draws: Sequence[int],
+    p: Iterable[float],
+    *,
+    rng: RandomSource = None,
+    index_base: int = 0,
+) -> np.ndarray:
+    """Map categorical draws to randomized PIT samples on ``(0, 1)``.
+
+    For category ``j`` with target mass ``p[j]`` and left CDF edge
+    ``F(j-1)``, this returns ``F(j-1) + V p[j]``. Under the exact categorical
+    target and independent ``V ~ U(0,1)``, the transformed samples are uniform.
+    """
+
+    probs = _probability_vector(p)
+    labels = np.asarray(draws, dtype=np.int64).reshape(-1) - int(index_base)
+    if labels.size == 0:
+        return np.empty(0, dtype=np.float64)
+    if np.any(labels < 0) or np.any(labels >= probs.size):
+        raise ValueError("draws contain labels outside the probability vector")
+    generator = _rng_from_seed(rng)
+    left_edges = np.concatenate(([0.0], np.cumsum(probs[:-1])))
+    u = left_edges[labels] + generator.random(labels.size) * probs[labels]
+    eps = np.finfo(np.float64).tiny
+    return np.clip(u, eps, 1.0 - np.finfo(np.float64).eps)
+
+
+def validate_categorical_draws(
+    draws: Sequence[int],
+    p: Iterable[float],
+    *,
+    rng: RandomSource = None,
+    index_base: int = 0,
+    d_max: int = 128,
+    points_per_cell: Optional[int] = None,
+    beta_cv: bool = True,
+) -> dict:
+    """Validate categorical draws with discrete and PIT-based diagnostics.
+
+    The direct discrete affinity is always computed. If the sibling packages
+    ``streaming-pit-validate`` and ``hellinger-qualify`` are importable, the
+    randomized PIT sample is also passed through their streaming Legendre and
+    smoothed-spacing Hellinger estimators. Missing optional packages simply
+    leave the corresponding report as ``None``.
+    """
+
+    probs = _probability_vector(p)
+    generator = _rng_from_seed(rng)
+    pit = randomized_categorical_pit(draws, probs, rng=generator, index_base=index_base)
+    exact = categorical_exact_pmf(probs)
+    counts = categorical_counts(draws, index_base=index_base)
+    affinity = empirical_affinity(exact, counts)
+    out = {
+        "n": int(pit.size),
+        "discrete_affinity": affinity,
+        "discrete_h2": 1.0 - affinity,
+        "pit": pit,
+        "legendre": None,
+        "hellinger": None,
+        "hellinger_cv": None,
+    }
+
+    try:
+        from streaming_pit_validate import StreamingLegendreValidator
+    except ModuleNotFoundError:
+        StreamingLegendreValidator = None
+    if StreamingLegendreValidator is not None and pit.size:
+        validator = StreamingLegendreValidator(d_max=d_max)
+        validator.update(pit)
+        out["legendre"] = validator.report()
+
+    try:
+        from hellinger_qualify import beta_control_variate_fixed_estimate, estimate_hellinger
+    except ModuleNotFoundError:
+        estimate_hellinger = None
+        beta_control_variate_fixed_estimate = None
+    if estimate_hellinger is not None and pit.size:
+        out["hellinger"] = estimate_hellinger(pit, points_per_cell=points_per_cell)
+        if beta_cv and beta_control_variate_fixed_estimate is not None and pit.size >= 2:
+            out["hellinger_cv"] = beta_control_variate_fixed_estimate(
+                pit,
+                generator,
+                points_per_cell=points_per_cell,
+            )
+    return out
 
 
 def _compositions(total: int, parts: int):
