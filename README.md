@@ -7,13 +7,14 @@ port contracts written from the MATLAB implementation, and `native/` carries
 the C and MEX reference sources so the Python backend work can proceed without
 reinventing the sampler design.
 
-See [Architecture Notes](docs/architecture.md) for the shared-backend,
-frontend-shim, RNG/threading, and triage rationale.
+See the [Architecture Notes](https://github.com/zenpharaohs/categorical-sampling/blob/main/docs/architecture.md)
+for the shared-backend, frontend-shim, RNG/threading, and triage rationale.
 
 ## Current Status
 
-This is the initial Python repository scaffold with native backend paths wired
-for binomial and multinomial sampling.
+This is a working alpha with native binomial and multinomial sampling, a
+NumPy categorical fallback, validation hooks, and an opt-in self-tuning
+multinomial dispatcher.
 
 - `categorical_samplers` exposes a NumPy-backed API for smoke tests and contract
   development.
@@ -28,8 +29,7 @@ for binomial and multinomial sampling.
   multinomial kernels.
 - `native/matlab_reference` contains the MATLAB MEX reference sources.
 - Native multinomial batch kernels use OpenMP when available. Native
-  categorical kernels, prebuilt multinomial state, and broader multinomial
-  triage are the next implementation steps.
+  categorical kernels and prebuilt multinomial state remain future work.
 
 ## Quick Start
 
@@ -104,6 +104,7 @@ platform- and compiler-sensitive.
 
 ```bash
 PYTHONPATH=src python benchmarks/bench_multinomial.py
+PYTHONPATH=src python benchmarks/bench_adaptive_multinomial.py
 ```
 
 On macOS, OpenMP builds require `libomp` (for example from Homebrew). Set
@@ -119,9 +120,8 @@ y = cs.categorical([0.2, 0.3, 0.5], size=1000, seed=123)
 z = cs.multinomial(25, [0.2, 0.3, 0.5], size=1000, seed=123)
 ```
 
-The initial implementation delegates to NumPy. That keeps the public contract
-testable while the native backend is completed. Binomial sampling already uses
-the native extension when it is available:
+Categorical sampling currently delegates to NumPy. Binomial and multinomial
+sampling use the native extension when it is available:
 
 ```python
 import categorical_samplers as cs
@@ -138,8 +138,33 @@ H2 = cs.multinomial(10, p, size=1000, method="rep")
 H3 = cs.multinomial(1000, p, size=1000, method="pivot")
 ```
 
-`method="auto"` is still a simple native dispatch placeholder. Learned or
-calibrated triage is planned.
+Without a tuner, `method="auto"` remains the simple, stateless native dispatch.
+
+An explicit self-tuning path is available for repeated workloads. It uses the
+public `cb-sampler` package to maintain context-specific continuous-Bernoulli
+Thompson posteriors over the qualified native kernels:
+
+```bash
+python -m pip install \
+  "cb-sampler @ git+https://github.com/zenpharaohs/continuous-bernoulli.git#subdirectory=python"
+```
+
+```python
+import categorical_samplers as cs
+
+p = [0.2, 0.3, 0.5]
+with cs.MultinomialTuner(seed=137) as tuner:
+    for seed in range(20):
+        z = cs.multinomial(
+            25, p, size=100_000, method="auto", tuner=tuner, seed=seed
+        )
+    print(tuner.diagnostics())
+```
+
+Calls without a tuner remain stateless and deterministic. See
+[Self-tuning multinomial dispatch](https://github.com/zenpharaohs/categorical-sampling/blob/main/docs/self_tuning_dispatch.md)
+for the timing score, context buckets, adaptation policy, and reproducibility
+boundary.
 
 ## Validation
 
@@ -162,5 +187,5 @@ PYTHONPATH=src:../hellinger-qualify/src:../streaming-pit-validate/src \
   python benchmarks/validate_install.py --n 1000000
 ```
 
-See [Validation](docs/validation.md) for the direct discrete and PIT-based
-validation paths.
+See [Validation](https://github.com/zenpharaohs/categorical-sampling/blob/main/docs/validation.md)
+for the direct discrete and PIT-based validation paths.

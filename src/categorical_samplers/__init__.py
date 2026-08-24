@@ -1,5 +1,7 @@
 """Categorical-family random samplers."""
 
+__version__ = "0.1.0"
+
 from .api import (
     BinomialStream,
     CategoricalStream,
@@ -15,11 +17,14 @@ from .validation import (
     validate_categorical_draws,
 )
 from ._backend import native_available
+from .tuning import MultinomialContext, MultinomialTuner
 
 __all__ = [
     "BinomialStream",
     "CategoricalStream",
     "MultinomialStream",
+    "MultinomialContext",
+    "MultinomialTuner",
     "bhattacharyya_iid_bounds",
     "binomial",
     "categorical",
@@ -28,4 +33,5 @@ __all__ = [
     "native_available",
     "randomized_categorical_pit",
     "validate_categorical_draws",
+    "__version__",
 ]

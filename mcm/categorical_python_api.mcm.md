@@ -66,9 +66,10 @@ be an explicit option such as `index_base=1`.
 
 Public method strings should be stable and explicit:
 
-- binomial: `"auto"`, `"btrd"`, `"wait2"`, `"dev"`
-- multinomial: `"auto"`, `"pivot"`, `"smallk-cdf"`, `"rep"`, `"numpy"`
-- categorical: `"auto"`, `"alias"`, `"cdf"`, `"numpy"`
+- binomial: `"auto"`, `"centerout"`, `"btrd"`, `"wait2"`, `"numpy"`
+- multinomial: `"auto"`, `"adaptive"`, `"pivot"`, `"smallk-cdf"`, `"rep"`,
+  `"numpy"`
+- categorical: `"auto"`, `"numpy"` until a native categorical kernel is added
 
 Benchmark labels should avoid ambiguous `"direct"` unless qualified as
 `"numpy-direct"`.
@@ -79,12 +80,17 @@ Benchmark labels should avoid ambiguous `"direct"` unless qualified as
 - Explicit seeds must be deterministic.
 - Repeated calls with the same seed and parameters must repeat.
 - Stream classes must diversify refill seeds deterministically.
+- Stream output must not depend on how a fixed draw count is split across
+  `draw` calls.
+- A supplied `MultinomialTuner` is explicitly outside deterministic dispatch:
+  it learns from wall-clock observations, although every selected sampler
+  remains exact and seed-deterministic.
 
 ## Triage Contract
 
-The Python `method="auto"` planner should initially port the MATLAB threshold
-logic and calibration defaults.  Host-specific calibration may be added after
-the base port but must not block a usable first release.
+The default `method="auto"` planner remains stateless. Host-specific tuning is
+opt-in through `MultinomialTuner`, which warms every qualified kernel once and
+uses contextual continuous-Bernoulli Thompson sampling thereafter.
 
 ## Acceptance Evidence
 
@@ -93,4 +99,3 @@ the base port but must not block a usable first release.
 - Determinism tests cover functions and streams.
 - Method-forcing tests cover every supported route.
 - NumPy baseline tests cover distributional agreement, not bitwise equality.
-

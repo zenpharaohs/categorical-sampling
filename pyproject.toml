@@ -4,17 +4,26 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "categorical-sampling"
-version = "0.0.1"
+version = "0.1.0"
 description = "Fast categorical-family random samplers and validation utilities."
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [
-  {name = "categorical-sampling contributors"}
+  {name = "Andrew P. Mullhaupt"}
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Mathematics",
 ]
 dependencies = [
   "numpy>=1.24"
 ]
+
+[project.urls]
+Repository = "https://github.com/zenpharaohs/categorical-sampling"
+Issues = "https://github.com/zenpharaohs/categorical-sampling/issues"
 
 [project.optional-dependencies]
 validation = [
@@ -28,7 +37,7 @@ torch = [
 where = ["src"]
 
 [tool.cibuildwheel]
-build = "cp39-* cp310-* cp311-* cp312-*"
+build = "cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*"
 skip = "pp* *-musllinux_*"
 test-command = "python -m categorical_samplers._wheel_smoke"
 

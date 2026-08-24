@@ -1,0 +1,5 @@
+recursive-include benchmarks *.py
+recursive-include docs *.md
+recursive-include mcm *.md
+recursive-include native/core/include *.h
+recursive-include native/matlab_reference *.c

@@ -59,6 +59,13 @@ and backend. It should specify:
 - performance regimes and triage context features
 - frontend-specific packaging constraints
 
-Future static or bandit-trained triage should choose only among kernels that
-have passed validation for the relevant context. Correctness is a qualification
-gate; triage is a performance decision among qualified methods.
+The opt-in `MultinomialTuner` implements contextual Thompson triage over these
+three kernels using continuous-Bernoulli pseudo-posteriors. It warms each arm,
+learns from exponentially weighted time per output row, and keeps the default
+`method="auto"` path stateless. See
+[Self-tuning multinomial dispatch](self_tuning_dispatch.md) for the policy and
+its reproducibility boundary.
+
+Adaptive triage must choose only among kernels that have passed validation for
+the relevant context. Correctness is a qualification gate; triage is a
+performance decision among qualified methods.
