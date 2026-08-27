@@ -55,6 +55,12 @@ jobs:
       - name: Install macOS OpenMP runtime
         if: startsWith(matrix.os, 'macos-')
         run: brew install libomp
+      - name: Set Intel macOS deployment target
+        if: matrix.os == 'macos-15-intel'
+        run: echo "MACOSX_DEPLOYMENT_TARGET=14.0" >> "$GITHUB_ENV"
+      - name: Set Apple silicon macOS deployment target
+        if: matrix.os == 'macos-15'
+        run: echo "MACOSX_DEPLOYMENT_TARGET=15.0" >> "$GITHUB_ENV"
       - uses: pypa/cibuildwheel@v4.2.0
         with:
           package-dir: .
