@@ -20,13 +20,10 @@ with cs.MultinomialTuner(seed=137) as tuner:
     report = tuner.diagnostics()
 ```
 
-The tuner requires `cb-sampler` from the public `continuous-bernoulli`
-repository. Until it is available from a package index, install it directly
-from GitHub:
+The tuner requires the public `cb-sampler` package. Install the tuning extra:
 
 ```bash
-python -m pip install \
-  "cb-sampler @ git+https://github.com/zenpharaohs/continuous-bernoulli.git#subdirectory=python"
+python -m pip install "categorical-sampling[tuning]"
 ```
 
 Each permutation-invariant context records `K`, category count, batch size,

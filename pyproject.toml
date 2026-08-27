@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "categorical-sampling"
-version = "0.1.0"
+version = "0.1.0a1"
 description = "Fast categorical-family random samplers and validation utilities."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -26,6 +26,9 @@ Repository = "https://github.com/zenpharaohs/categorical-sampling"
 Issues = "https://github.com/zenpharaohs/categorical-sampling/issues"
 
 [project.optional-dependencies]
+tuning = [
+  "cb-sampler>=0.1.0a1,<0.2"
+]
 validation = [
   "scipy>=1.10"
 ]

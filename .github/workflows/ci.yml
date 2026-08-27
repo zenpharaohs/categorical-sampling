@@ -47,9 +47,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip
-      - run: >-
-          python -m pip install .
-          "cb-sampler @ git+https://github.com/zenpharaohs/continuous-bernoulli.git#subdirectory=python"
+      - run: python -m pip install ".[tuning]"
       - run: python -m unittest discover -s tests -v
 
   package:

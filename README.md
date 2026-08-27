@@ -54,6 +54,12 @@ python -m unittest discover -s tests
 The final `.` in `python -m pip install -e .` means "install this repository
 from the current folder"; it is required.
 
+For the published alpha, including self-tuning dispatch:
+
+```bash
+python -m pip install "categorical-sampling[tuning]"
+```
+
 Without installing, the smoke tests can also be run from the repo root:
 
 ```bash
@@ -144,10 +150,8 @@ An explicit self-tuning path is available for repeated workloads. It uses the
 public `cb-sampler` package to maintain context-specific continuous-Bernoulli
 Thompson posteriors over the qualified native kernels:
 
-```bash
-python -m pip install \
-  "cb-sampler @ git+https://github.com/zenpharaohs/continuous-bernoulli.git#subdirectory=python"
-```
+Install the optional continuous-Bernoulli dependency with
+`python -m pip install "categorical-sampling[tuning]"`.
 
 ```python
 import categorical_samplers as cs

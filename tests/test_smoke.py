@@ -7,7 +7,7 @@ import categorical_samplers as cs
 
 class SamplerSmokeTests(unittest.TestCase):
     def test_version_is_exposed(self):
-        self.assertEqual(cs.__version__, "0.1.0")
+        self.assertEqual(cs.__version__, "0.1.0a1")
 
     def test_seeded_binomial_is_reproducible(self):
         a = cs.binomial(50, 0.3, size=100, seed=123)
